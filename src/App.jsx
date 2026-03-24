@@ -469,125 +469,168 @@ function AffinitiesTab({ editors, clients, affinities, toggleAffinity }) {
 function WeekTab({ editors, clients, weekEditors, weekClients, updateWeekEditor, updateWeekClient }) {
   const activeEd = editors.filter(e => e.name.trim());
   const activeCl = clients.filter(c => c.name.trim());
+  const [dispoOpen, setDispoOpen] = useState(false);
+  const [openCS, setOpenCS] = useState({});
+
+  const toggleCS = (name) => setOpenCS(p => ({ ...p, [name]: !p[name] }));
+
+  const totalCapWeek = activeEd.reduce((s, e) => {
+    const w = weekEditors.find(we => we.editor_id === e.id);
+    return s + (w ? editorAvailableDayNumbers(w).length : 5) * 5;
+  }, 0);
+
+  // Group clients by CS
+  const csGroups = useMemo(() => {
+    const groups = {};
+    activeCl.forEach(c => {
+      const cs = c.strategist?.trim() || "Non assigné";
+      if (!groups[cs]) groups[cs] = [];
+      groups[cs].push(c);
+    });
+    return Object.entries(groups);
+  }, [activeCl]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-      {/* Dispos */}
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Dispos — collapsible */}
       <div>
-        <div style={S.sectionHeader}><div><h2 style={S.sectionTitle}>DISPONIBILITÉS ÉQUIPE</h2><p style={S.sectionDesc}>Coche les jours où chaque monteur est disponible cette semaine. Capacité = jours cochés × 5 concepts.</p></div></div>
-        {!activeEd.length && <p style={S.empty}>Aucun monteur dans le référentiel.</p>}
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {activeEd.map(e => {
-            const w = weekEditors.find(we => we.editor_id === e.id);
-            const days = w ? editorAvailableDayNumbers(w) : [1, 2, 3, 4, 5];
-            const totalDays = days.length;
-
-            return (
-              <div key={e.id} style={S.dispoCard}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 160 }}>
-                    <span style={{ fontWeight: 600, fontSize: 13 }}>{e.name}</span>
-                    <span style={{ fontSize: 9, color: LEVEL_CLR[e.level].text, background: LEVEL_CLR[e.level].bg, padding: "1px 6px", borderRadius: 2, fontWeight: 700, textTransform: "uppercase" }}>{LEVELS[e.level]}</span>
-                    {e.is_freelance && <span style={{ fontSize: 9, color: C.accent, fontWeight: 700 }}>FREELANCE</span>}
+        <button onClick={() => setDispoOpen(p => !p)} style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%",
+          background: C.card, border: `1px solid ${C.border}`, borderRadius: 2, padding: "12px 16px",
+          cursor: "pointer", transition: "all .15s",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 18, color: C.black, letterSpacing: "0.04em" }}>DISPONIBILITÉS ÉQUIPE</span>
+            <span style={{ fontSize: 11, color: C.textMuted }}>{activeEd.length} monteurs · {totalCapWeek} concepts</span>
+          </div>
+          <span style={{ fontSize: 16, color: C.textMuted, transition: "transform .2s", transform: dispoOpen ? "rotate(180deg)" : "rotate(0)" }}>▾</span>
+        </button>
+        {dispoOpen && (
+          <div style={{ marginTop: 8 }}>
+            <p style={{ ...S.sectionDesc, marginBottom: 10 }}>Coche les jours où chaque monteur est disponible cette semaine.</p>
+            {!activeEd.length && <p style={S.empty}>Aucun monteur dans le référentiel.</p>}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {activeEd.map(e => {
+                const w = weekEditors.find(we => we.editor_id === e.id);
+                const days = w ? editorAvailableDayNumbers(w) : [1, 2, 3, 4, 5];
+                const totalDays = days.length;
+                return (
+                  <div key={e.id} style={S.dispoCard}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 160 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13 }}>{e.name}</span>
+                        <span style={{ fontSize: 9, color: LEVEL_CLR[e.level].text, background: LEVEL_CLR[e.level].bg, padding: "1px 6px", borderRadius: 2, fontWeight: 700, textTransform: "uppercase" }}>{LEVELS[e.level]}</span>
+                        {e.is_freelance && <span style={{ fontSize: 9, color: C.accent, fontWeight: 700 }}>FREELANCE</span>}
+                      </div>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        {DAY_KEYS.map((key, i) => {
+                          const on = w ? w[key] : true;
+                          return (
+                            <button key={key} onClick={() => updateWeekEditor(e.id, { [key]: !on, days_available: (on ? totalDays - 1 : totalDays + 1) })} style={{
+                              width: 36, height: 32, borderRadius: 2, border: `2px solid ${on ? C.accent : C.border}`,
+                              background: on ? C.accent : "transparent", color: on ? "#fff" : C.textLight,
+                              fontSize: 11, fontWeight: 700, cursor: "pointer", transition: "all .15s",
+                              boxShadow: on ? `1px 1px 0px ${C.black}` : "none",
+                            }}>{DAY_SHORT[i]}</button>
+                          );
+                        })}
+                      </div>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 14, fontWeight: 700, color: C.accent, marginLeft: "auto" }}>{totalDays * 5}c</span>
+                    </div>
                   </div>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    {DAY_KEYS.map((key, i) => {
-                      const on = w ? w[key] : true;
-                      return (
-                        <button key={key} onClick={() => updateWeekEditor(e.id, { [key]: !on, days_available: (on ? totalDays - 1 : totalDays + 1) })} style={{
-                          width: 36, height: 32, borderRadius: 2, border: `2px solid ${on ? C.accent : C.border}`,
-                          background: on ? C.accent : "transparent", color: on ? "#fff" : C.textLight,
-                          fontSize: 11, fontWeight: 700, cursor: "pointer", transition: "all .15s",
-                          boxShadow: on ? `1px 1px 0px ${C.black}` : "none",
-                        }}>{DAY_SHORT[i]}</button>
-                      );
-                    })}
-                  </div>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 14, fontWeight: 700, color: C.accent, marginLeft: "auto" }}>{totalDays * 5}c</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Demands */}
+      {/* Demands — grouped by CS, collapsible */}
       <div>
         <div style={S.sectionHeader}><div><h2 style={S.sectionTitle}>DEMANDES CLIENTS</h2><p style={S.sectionDesc}>À remplir pendant le call d'anticipation avec le Creative Strategist.</p></div></div>
         {!activeCl.length && <p style={S.empty}>Aucun client dans le référentiel.</p>}
-        {(() => {
-          const groups = {};
-          activeCl.forEach(c => {
-            const cs = c.strategist?.trim() || "Non assigné";
-            if (!groups[cs]) groups[cs] = [];
-            groups[cs].push(c);
-          });
-          return Object.entries(groups).map(([csName, csClients]) => (
-            <div key={csName} style={{ marginBottom: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <div style={{ width: 4, height: 20, background: C.accent, borderRadius: 1 }} />
-                <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 16, color: C.black, letterSpacing: "0.04em" }}>{csName}</span>
-                <span style={{ fontSize: 11, color: C.textLight }}>{csClients.length} client{csClients.length > 1 ? "s" : ""}</span>
-              </div>
-              {csClients.map(c => {
-          const w = weekClients.find(wc => wc.client_id === c.id) || {};
-          const score = priorityScore({ ...w, pack: c.pack });
+        {csGroups.map(([csName, csClients]) => {
+          const isOpen = openCS[csName] !== false; // open by default
+          const totalConcepts = csClients.reduce((s, c) => { const w = weekClients.find(wc => wc.client_id === c.id); return s + (w?.concepts_requested || 0); }, 0);
+          const unfilledCount = csClients.filter(c => { const w = weekClients.find(wc => wc.client_id === c.id); return !w || !w.concepts_requested; }).length;
+
           return (
-            <div key={c.id} style={S.clientCard}>
-              <div style={S.clientCardHeader}>
-                <div style={S.scoreBox}><span style={S.scoreNum}>{score}</span><span style={S.scorePts}>PTS</span></div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: C.black }}>{c.name}</div>
-                  <div style={{ fontSize: 11, color: C.textMuted }}>{PACK_LABELS[c.pack]}</div>
+            <div key={csName} style={{ marginBottom: 16 }}>
+              <button onClick={() => toggleCS(csName)} style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%",
+                background: "transparent", border: "none", cursor: "pointer", padding: "8px 0",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 4, height: 20, background: C.accent, borderRadius: 1 }} />
+                  <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 16, color: C.black, letterSpacing: "0.04em" }}>{csName}</span>
+                  <span style={{ fontSize: 11, color: C.textMuted }}>{csClients.length} client{csClients.length > 1 ? "s" : ""} · {totalConcepts} concepts</span>
+                  {unfilledCount > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: C.warning, background: C.warning + "18", padding: "2px 8px", borderRadius: 2 }}>{unfilledCount} à remplir</span>}
                 </div>
-              </div>
-              <div style={S.clientCardBody}>
-                <div style={S.fieldGrp}>
-                  <label style={S.label}>Concepts</label>
-                  <input style={{ ...S.inputSm, width: 65, textAlign: "center", fontSize: 15, fontWeight: 700 }} type="number" min="0" value={w.concepts_requested || 0} onChange={e => updateWeekClient(c.id, "concepts_requested", Math.max(0, parseInt(e.target.value) || 0))} />
-                </div>
-                <div style={S.fieldGrp}>
-                  <label style={S.label}>Arrivée rushs</label>
-                  <select style={{ ...S.select, width: 130 }} value={w.rush_day || 0} onChange={e => updateWeekClient(c.id, "rush_day", parseInt(e.target.value))}>
-                    <option value={0}>—</option>
-                    {[1, 2, 3, 4, 5].map(d => <option key={d} value={d}>{DAY_LABELS[d]}</option>)}
-                  </select>
-                </div>
-                <div style={S.fieldGrp}>
-                  <label style={S.label}>Livraison espérée</label>
-                  <select style={{ ...S.select, width: 130 }} value={w.desired_deadline_day || 0} onChange={e => updateWeekClient(c.id, "desired_deadline_day", parseInt(e.target.value))}>
-                    <option value={0}>—</option>
-                    {[1, 2, 3, 4, 5].map(d => <option key={d} value={d}>{DAY_LABELS[d]}</option>)}
-                  </select>
-                </div>
-                <div style={S.flagsRow}>
-                  {[
-                    { key: "at_risk", label: "Insatisfaction", color: C.danger, icon: "⚠" },
-                    { key: "quality_required", label: "Qualité exigée", color: C.warning, icon: "★" },
-                    { key: "behind_schedule", label: "En retard", color: C.purple, icon: "⏱" },
-                    { key: "has_deadline", label: "Deadline imposée", color: C.blue, icon: "📅" },
-                  ].map(f => (
-                    <button key={f.key} onClick={() => updateWeekClient(c.id, f.key, !w[f.key])} style={{
-                      ...S.flagBtn, borderColor: w[f.key] ? f.color : C.border,
-                      background: w[f.key] ? f.color + "12" : "transparent",
-                      color: w[f.key] ? f.color : C.textLight,
-                      boxShadow: w[f.key] ? `2px 2px 0px ${f.color}44` : "none",
-                    }}><span style={{ marginRight: 4 }}>{f.icon}</span>{f.label}</button>
-                  ))}
-                </div>
-                {w.has_deadline && (
-                  <div style={S.fieldGrp}>
-                    <label style={S.label}>Date limite</label>
-                    <input type="date" style={{ ...S.input, width: 160 }} value={w.deadline_date || ""} onChange={e => updateWeekClient(c.id, "deadline_date", e.target.value)} />
+                <span style={{ fontSize: 16, color: C.textMuted, transition: "transform .2s", transform: isOpen ? "rotate(180deg)" : "rotate(0)" }}>▾</span>
+              </button>
+              {isOpen && csClients.map(c => {
+                const w = weekClients.find(wc => wc.client_id === c.id) || {};
+                const score = priorityScore({ ...w, pack: c.pack });
+                const unfilled = !w.concepts_requested;
+                return (
+                  <div key={c.id} style={{ ...S.clientCard, ...(unfilled ? { borderColor: C.warning, boxShadow: `4px 4px 0px ${C.warning}` } : {}) }}>
+                    <div style={S.clientCardHeader}>
+                      <div style={S.scoreBox}><span style={S.scoreNum}>{score}</span><span style={S.scorePts}>PTS</span></div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontWeight: 700, fontSize: 15, color: C.black }}>{c.name}</span>
+                          {unfilled && <span style={{ fontSize: 9, fontWeight: 700, color: C.warning, background: C.warning + "18", padding: "2px 8px", borderRadius: 2 }}>À REMPLIR</span>}
+                        </div>
+                        <div style={{ fontSize: 11, color: C.textMuted }}>{PACK_LABELS[c.pack]}</div>
+                      </div>
+                    </div>
+                    <div style={S.clientCardBody}>
+                      <div style={S.fieldGrp}>
+                        <label style={S.label}>Concepts</label>
+                        <input style={{ ...S.inputSm, width: 65, textAlign: "center", fontSize: 15, fontWeight: 700, ...(unfilled ? { borderColor: C.warning } : {}) }} type="number" min="0" value={w.concepts_requested || 0} onChange={e => updateWeekClient(c.id, "concepts_requested", Math.max(0, parseInt(e.target.value) || 0))} />
+                      </div>
+                      <div style={S.fieldGrp}>
+                        <label style={S.label}>Arrivée rushs</label>
+                        <select style={{ ...S.select, width: 130 }} value={w.rush_day || 0} onChange={e => updateWeekClient(c.id, "rush_day", parseInt(e.target.value))}>
+                          <option value={0}>—</option>
+                          {[1, 2, 3, 4, 5].map(d => <option key={d} value={d}>{DAY_LABELS[d]}</option>)}
+                        </select>
+                      </div>
+                      <div style={S.fieldGrp}>
+                        <label style={S.label}>Livraison espérée</label>
+                        <select style={{ ...S.select, width: 130 }} value={w.desired_deadline_day || 0} onChange={e => updateWeekClient(c.id, "desired_deadline_day", parseInt(e.target.value))}>
+                          <option value={0}>—</option>
+                          {[1, 2, 3, 4, 5].map(d => <option key={d} value={d}>{DAY_LABELS[d]}</option>)}
+                        </select>
+                      </div>
+                      <div style={S.flagsRow}>
+                        {[
+                          { key: "at_risk", label: "Insatisfaction", color: C.danger, icon: "⚠" },
+                          { key: "quality_required", label: "Qualité exigée", color: C.warning, icon: "★" },
+                          { key: "behind_schedule", label: "En retard", color: C.purple, icon: "⏱" },
+                          { key: "has_deadline", label: "Deadline imposée", color: C.blue, icon: "📅" },
+                        ].map(f => (
+                          <button key={f.key} onClick={() => updateWeekClient(c.id, f.key, !w[f.key])} style={{
+                            ...S.flagBtn, borderColor: w[f.key] ? f.color : C.border,
+                            background: w[f.key] ? f.color + "12" : "transparent",
+                            color: w[f.key] ? f.color : C.textLight,
+                            boxShadow: w[f.key] ? `2px 2px 0px ${f.color}44` : "none",
+                          }}><span style={{ marginRight: 4 }}>{f.icon}</span>{f.label}</button>
+                        ))}
+                      </div>
+                      {w.has_deadline && (
+                        <div style={S.fieldGrp}>
+                          <label style={S.label}>Date limite</label>
+                          <input type="date" style={{ ...S.input, width: 160 }} value={w.deadline_date || ""} onChange={e => updateWeekClient(c.id, "deadline_date", e.target.value)} />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
+                );
+              })}
             </div>
           );
         })}
-            </div>
-          ));
-        })()}
       </div>
     </div>
   );
