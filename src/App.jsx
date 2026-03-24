@@ -743,4 +743,4 @@ const S = {
   overflowRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 16px", background: C.danger + "08", border: `1px solid ${C.danger}30`, borderRadius: 2, gap: 12 },
   barRow: { display: "flex", alignItems: "center", gap: 12, padding: "6px 0" },
   barTrack: { flex: 1, height: 8, background: C.border, overflow: "hidden", border: `1px solid ${C.border}` },
-};
+}; 
