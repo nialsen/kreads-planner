@@ -187,7 +187,7 @@ export default function App() {
   const [weekEditors, setWeekEditors] = useState([]);
   const [weekClients, setWeekClients] = useState([]);
   const [weekStart, setWeekStart] = useState(getMonday());
-  const [tab, setTab] = useState("ref");
+  const [tab, setTab] = useState("week");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -470,7 +470,7 @@ function WeekTab({ editors, clients, weekEditors, weekClients, updateWeekEditor,
   const activeEd = editors.filter(e => e.name.trim());
   const activeCl = clients.filter(c => c.name.trim());
   const [dispoOpen, setDispoOpen] = useState(false);
-  const [demandsOpen, setDemandsOpen] = useState(true);
+  const [demandsOpen, setDemandsOpen] = useState(false);
   const [openCS, setOpenCS] = useState({}); // all closed by default
 
   const toggleCS = (name) => setOpenCS(p => ({ ...p, [name]: !p[name] }));
