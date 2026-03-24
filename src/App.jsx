@@ -515,7 +515,21 @@ function WeekTab({ editors, clients, weekEditors, weekClients, updateWeekEditor,
       <div>
         <div style={S.sectionHeader}><div><h2 style={S.sectionTitle}>DEMANDES CLIENTS</h2><p style={S.sectionDesc}>À remplir pendant le call d'anticipation avec le Creative Strategist.</p></div></div>
         {!activeCl.length && <p style={S.empty}>Aucun client dans le référentiel.</p>}
-        {activeCl.map(c => {
+        {(() => {
+          const groups = {};
+          activeCl.forEach(c => {
+            const cs = c.strategist?.trim() || "Non assigné";
+            if (!groups[cs]) groups[cs] = [];
+            groups[cs].push(c);
+          });
+          return Object.entries(groups).map(([csName, csClients]) => (
+            <div key={csName} style={{ marginBottom: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 4, height: 20, background: C.accent, borderRadius: 1 }} />
+                <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 16, color: C.black, letterSpacing: "0.04em" }}>{csName}</span>
+                <span style={{ fontSize: 11, color: C.textLight }}>{csClients.length} client{csClients.length > 1 ? "s" : ""}</span>
+              </div>
+              {csClients.map(c => {
           const w = weekClients.find(wc => wc.client_id === c.id) || {};
           const score = priorityScore({ ...w, pack: c.pack });
           return (
@@ -524,7 +538,7 @@ function WeekTab({ editors, clients, weekEditors, weekClients, updateWeekEditor,
                 <div style={S.scoreBox}><span style={S.scoreNum}>{score}</span><span style={S.scorePts}>PTS</span></div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 15, color: C.black }}>{c.name}</div>
-                  <div style={{ fontSize: 11, color: C.textMuted }}>{c.strategist && `CS : ${c.strategist}`} · {PACK_LABELS[c.pack]}</div>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>{PACK_LABELS[c.pack]}</div>
                 </div>
               </div>
               <div style={S.clientCardBody}>
@@ -571,6 +585,9 @@ function WeekTab({ editors, clients, weekEditors, weekClients, updateWeekEditor,
             </div>
           );
         })}
+            </div>
+          ));
+        })()}
       </div>
     </div>
   );
@@ -743,4 +760,4 @@ const S = {
   overflowRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 16px", background: C.danger + "08", border: `1px solid ${C.danger}30`, borderRadius: 2, gap: 12 },
   barRow: { display: "flex", alignItems: "center", gap: 12, padding: "6px 0" },
   barTrack: { flex: 1, height: 8, background: C.border, overflow: "hidden", border: `1px solid ${C.border}` },
-}; 
+};
