@@ -1,6 +1,63 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "./lib/supabase";
 
+/* ── Password Gate ── */
+const APP_PASSWORD = import.meta.env.VITE_APP_PASSWORD || "kreads2026";
+
+function PasswordGate({ children }) {
+  const [authed, setAuthed] = useState(false);
+  const [input, setInput] = useState("");
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    try { if (sessionStorage.getItem("kreads-auth") === "1") setAuthed(true); } catch {}
+  }, []);
+
+  const handleSubmit = () => {
+    if (input === APP_PASSWORD) {
+      try { sessionStorage.setItem("kreads-auth", "1"); } catch {}
+      setAuthed(true);
+    } else {
+      setError(true);
+      setTimeout(() => setError(false), 1500);
+    }
+  };
+
+  if (authed) return children;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#FCFBF8", fontFamily: "'Inter',sans-serif" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');`}</style>
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", marginBottom: 8 }}>
+          <span style={{ color: "#111", fontFamily: "'Bebas Neue',sans-serif", fontSize: 36 }}>KREA</span>
+          <span style={{ color: "#00D2C1", fontFamily: "'Bebas Neue',sans-serif", fontSize: 36 }}>ADS</span>
+        </div>
+        <p style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 18, color: "#111", letterSpacing: "0.08em" }}>PRODUCTION PLANNER</p>
+      </div>
+      <div style={{ background: "#fff", border: "2px solid #111", borderRadius: 2, padding: 32, width: 340, boxShadow: "4px 4px 0px #00D2C1" }}>
+        <label style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "#777", fontWeight: 700, display: "block", marginBottom: 8 }}>Mot de passe</label>
+        <input
+          type="password"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleSubmit()}
+          placeholder="Entrez le mot de passe"
+          style={{ width: "100%", padding: "10px 12px", border: `2px solid ${error ? "#D94F4F" : "#E0DDDA"}`, borderRadius: 2, fontSize: 14, fontFamily: "'Inter',sans-serif", background: "#FCFBF8", color: "#111", transition: "border-color .2s" }}
+          autoFocus
+        />
+        {error && <p style={{ color: "#D94F4F", fontSize: 12, marginTop: 8 }}>Mot de passe incorrect</p>}
+        <button
+          onClick={handleSubmit}
+          style={{ width: "100%", marginTop: 16, padding: "10px 0", background: "#111", color: "#fff", border: "2px solid #111", borderRadius: 2, fontSize: 12, fontWeight: 600, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.06em", boxShadow: "3px 3px 0px #00D2C1" }}
+        >
+          Accéder →
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ── Helpers ── */
 function getMonday(d = new Date()) {
   const dt = new Date(d);
@@ -274,6 +331,7 @@ export default function App() {
   if (loading) return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", background: C.bg, fontFamily: "'Inter',sans-serif" }}>Chargement...</div>;
 
   return (
+    <PasswordGate>
     <div style={S.root}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -336,6 +394,7 @@ export default function App() {
         {tab === "planning" && <PlanningTab planning={planning} totalCap={totalCap} totalDem={totalDem} />}
       </div>
     </div>
+    </PasswordGate>
   );
 }
 
@@ -697,15 +756,29 @@ function PlanningTab({ planning, totalCap, totalDem }) {
       {pool.length > 0 && (
         <div style={{ marginTop: 32 }}>
           <h3 style={{ ...S.sectionTitle, fontSize: 14 }}>CHARGE PAR MONTEUR</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
             {pool.filter(e => e.name.trim()).map(e => {
               const pct = e.capacity > 0 ? e.used / e.capacity : 0;
+              const editorAssignments = assignments.filter(a => a.editor_id === e.id);
               return (
-                <div key={e.id} style={S.barRow}>
-                  <span style={{ width: 120, fontWeight: 600, fontSize: 13 }}>{e.name}</span>
-                  <span style={{ width: 70, fontSize: 9, color: LEVEL_CLR[e.level].text, background: LEVEL_CLR[e.level].bg, padding: "2px 6px", borderRadius: 2, fontWeight: 700, textTransform: "uppercase" }}>{LEVELS[e.level]}</span>
-                  <div style={S.barTrack}><div style={{ height: "100%", width: `${pct * 100}%`, background: pct > .9 ? C.danger : pct > .7 ? C.warning : C.accent, transition: "width .4s" }} /></div>
-                  <span style={{ width: 70, textAlign: "right", fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 600, color: C.textMuted }}>{e.used}/{e.capacity}</span>
+                <div key={e.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 2, padding: "12px 16px" }}>
+                  <div style={S.barRow}>
+                    <span style={{ width: 120, fontWeight: 600, fontSize: 13 }}>{e.name}</span>
+                    <span style={{ width: 70, fontSize: 9, color: LEVEL_CLR[e.level].text, background: LEVEL_CLR[e.level].bg, padding: "2px 6px", borderRadius: 2, fontWeight: 700, textTransform: "uppercase" }}>{LEVELS[e.level]}</span>
+                    <div style={S.barTrack}><div style={{ height: "100%", width: `${pct * 100}%`, background: pct > .9 ? C.danger : pct > .7 ? C.warning : C.accent, transition: "width .4s" }} /></div>
+                    <span style={{ width: 70, textAlign: "right", fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 600, color: C.textMuted }}>{e.used}/{e.capacity}</span>
+                  </div>
+                  {editorAssignments.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8, paddingLeft: 120 }}>
+                      {editorAssignments.map((a, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 10px", background: a.has_affinity ? C.accent + "10" : C.bg, border: `1px solid ${a.has_affinity ? C.accent + "44" : C.border}`, borderRadius: 2, fontSize: 11 }}>
+                          <span style={{ color: C.text, fontWeight: 500 }}>{a.client_name}</span>
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: C.accentDark, fontSize: 10 }}>{a.concepts}c</span>
+                          {a.has_affinity && <span style={{ fontSize: 8, color: C.accent, fontWeight: 700 }}>AFF</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
