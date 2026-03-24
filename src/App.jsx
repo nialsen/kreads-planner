@@ -470,7 +470,8 @@ function WeekTab({ editors, clients, weekEditors, weekClients, updateWeekEditor,
   const activeEd = editors.filter(e => e.name.trim());
   const activeCl = clients.filter(c => c.name.trim());
   const [dispoOpen, setDispoOpen] = useState(false);
-  const [openCS, setOpenCS] = useState({});
+  const [demandsOpen, setDemandsOpen] = useState(true);
+  const [openCS, setOpenCS] = useState({}); // all closed by default
 
   const toggleCS = (name) => setOpenCS(p => ({ ...p, [name]: !p[name] }));
 
@@ -547,10 +548,30 @@ function WeekTab({ editors, clients, weekEditors, weekClients, updateWeekEditor,
 
       {/* Demands — grouped by CS, collapsible */}
       <div>
-        <div style={S.sectionHeader}><div><h2 style={S.sectionTitle}>DEMANDES CLIENTS</h2><p style={S.sectionDesc}>À remplir pendant le call d'anticipation avec le Creative Strategist.</p></div></div>
+        {(() => {
+          const totalDemandsCount = activeCl.length;
+          const totalConceptsAll = activeCl.reduce((s, c) => { const w = weekClients.find(wc => wc.client_id === c.id); return s + (w?.concepts_requested || 0); }, 0);
+          const totalUnfilled = activeCl.filter(c => { const w = weekClients.find(wc => wc.client_id === c.id); return !w || !w.concepts_requested; }).length;
+          return (
+            <button onClick={() => setDemandsOpen(p => !p)} style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%",
+              background: C.card, border: `1px solid ${C.border}`, borderRadius: 2, padding: "12px 16px",
+              cursor: "pointer", transition: "all .15s",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 18, color: C.black, letterSpacing: "0.04em" }}>DEMANDES CLIENTS</span>
+                <span style={{ fontSize: 11, color: C.textMuted }}>{totalDemandsCount} clients · {totalConceptsAll} concepts</span>
+                {totalUnfilled > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: C.warning, background: C.warning + "18", padding: "2px 8px", borderRadius: 2 }}>{totalUnfilled} à remplir</span>}
+              </div>
+              <span style={{ fontSize: 16, color: C.textMuted, transition: "transform .2s", transform: demandsOpen ? "rotate(180deg)" : "rotate(0)" }}>▾</span>
+            </button>
+          );
+        })()}
+        {demandsOpen && (
+          <div style={{ marginTop: 12 }}>
         {!activeCl.length && <p style={S.empty}>Aucun client dans le référentiel.</p>}
         {csGroups.map(([csName, csClients]) => {
-          const isOpen = openCS[csName] !== false; // open by default
+          const isOpen = openCS[csName] === true; // closed by default
           const totalConcepts = csClients.reduce((s, c) => { const w = weekClients.find(wc => wc.client_id === c.id); return s + (w?.concepts_requested || 0); }, 0);
           const unfilledCount = csClients.filter(c => { const w = weekClients.find(wc => wc.client_id === c.id); return !w || !w.concepts_requested; }).length;
 
@@ -631,6 +652,8 @@ function WeekTab({ editors, clients, weekEditors, weekClients, updateWeekEditor,
             </div>
           );
         })}
+          </div>
+        )}
       </div>
     </div>
   );
